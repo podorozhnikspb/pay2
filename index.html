@@ -38,13 +38,6 @@
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
-            // Отслеживаем загрузку iframe (редирект от Тинькофф)
-            iframe.onload = () => {
-                console.log('Iframe загружен или перенаправлен');
-                // Проверяем статус после редиректа
-                checkStatus();
-            };
-
             const checkStatus = async () => {
                 try {
                     const response = await fetch(statusUrl, {
@@ -57,14 +50,12 @@
                     console.log('Статус от API:', data.Status);
 
                     if (data.Status === 'CONFIRMED') {
-                        console.log('Оплата успешна');
+                        console.log('Оплата успешна, закрываем Web App');
                         clearInterval(statusInterval);
-                        iframe.src = ''; // Очищаем iframe, чтобы остановить редирект
                         setTimeout(() => Telegram.WebApp.close(), 500); // Задержка для iOS
                     } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
-                        console.log('Оплата отклонена или отменена');
+                        console.log('Оплата отклонена или отменена, закрываем Web App');
                         clearInterval(statusInterval);
-                        iframe.src = ''; // Очищаем iframe
                         setTimeout(() => Telegram.WebApp.close(), 500); // Задержка для iOS
                     }
                 } catch (error) {
@@ -75,9 +66,8 @@
             const statusInterval = setInterval(checkStatus, 1000);
 
             setTimeout(() => {
-                console.log('Таймаут 15 минут');
+                console.log('Таймаут 15 минут, закрываем Web App');
                 clearInterval(statusInterval);
-                iframe.src = ''; // Очищаем iframe
                 setTimeout(() => Telegram.WebApp.close(), 500); // Задержка для iOS
             }, 900000);
         } else {
