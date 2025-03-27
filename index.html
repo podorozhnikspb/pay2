@@ -22,33 +22,26 @@
 <body>
     <iframe id="tinkoffFrame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
     <script>
-        // Получаем идентификатор оплаты из URL
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
+        const successUrlPrefix = 'https://alpha.ltkarta.ru/tbtopeth';
 
-        // Инициализируем Web App
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
 
-        // Загружаем страницу Tinkoff в iframe
         const iframe = document.getElementById('tinkoffFrame');
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
-            // Перехватываем клики внутри iframe (если возможно)
             iframe.onload = () => {
                 try {
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const links = iframeDoc.getElementsByTagName('a');
-                    for (let link of links) {
-                        const href = link.href;
-                        if (href.match(/(sberbank|tinkoff|alfabank):\/\//i)) {
-                            link.addEventListener('click', (e) => {
-                                e.preventDefault();
-                                Telegram.WebApp.openLink(href);
-                            });
-                        }
+                    const currentUrl = iframeDoc.location.href;
+
+                    if (currentUrl.startsWith(successUrlPrefix)) {
+                        console.log('Оплата успешно завершена, закрываем Web App');
+                        Telegram.WebApp.close();
                     }
                 } catch (e) {
                     console.error('Ошибка доступа к содержимому iframe:', e);
@@ -56,6 +49,7 @@
             };
         } else {
             document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
+            setTimeout(() => Telegram.WebApp.close(), 2000);
         }
     </script>
 </body>
