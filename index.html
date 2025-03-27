@@ -32,11 +32,17 @@
 
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
+        console.log('Web App инициализирован');
 
         const iframe = document.getElementById('tinkoffFrame');
         if (paymentId) {
             iframe.src = tinkoffUrl;
             console.log('Iframe загружен с URL:', tinkoffUrl);
+
+            iframe.onload = () => {
+                console.log('Iframe перезагружен, возможно редирект');
+                checkStatus(); // Проверяем сразу после редиректа
+            };
 
             const checkStatus = async () => {
                 try {
@@ -44,7 +50,8 @@
                     const response = await fetch(statusUrl, {
                         method: 'GET',
                         headers: {
-                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1'
+                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+                            'Accept': 'application/json'
                         }
                     });
                     const data = await response.json();
@@ -53,13 +60,29 @@
                     if (data.Status === 'CONFIRMED') {
                         console.log('Оплата успешна, пытаемся закрыть Web App');
                         clearInterval(statusInterval);
+                        Telegram.WebApp.sendData('payment_confirmed');
+                        console.log('Отправлен сигнал payment_confirmed');
                         Telegram.WebApp.close();
                         console.log('Вызван Telegram.WebApp.close()');
+                        setTimeout(() => {
+                            console.log('Костыль: пробуем window.close()');
+                            window.close();
+                            console.log('Костыль: редирект на tg://resolve');
+                            window.location.href = 'tg://resolve';
+                        }, 1000);
                     } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
                         console.log('Оплата отклонена или отменена, пытаемся закрыть Web App');
                         clearInterval(statusInterval);
+                        Telegram.WebApp.sendData('payment_rejected');
+                        console.log('Отправлен сигнал payment_rejected');
                         Telegram.WebApp.close();
                         console.log('Вызван Telegram.WebApp.close()');
+                        setTimeout(() => {
+                            console.log('Костыль: пробуем window.close()');
+                            window.close();
+                            console.log('Костыль: редирект на tg://resolve');
+                            window.location.href = 'tg://resolve';
+                        }, 1000);
                     } else {
                         console.log('Текущий статус:', data.Status);
                     }
