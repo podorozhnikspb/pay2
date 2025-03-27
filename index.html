@@ -14,6 +14,11 @@
     </style>
 </head>
 <body>
+    <script>
+    // Имитация десктопного размера окна
+    Object.defineProperty(window, 'innerWidth', { value: 1280, writable: false });
+    Object.defineProperty(window, 'innerHeight', { value: 720, writable: false });
+    </script>
     <p>Перенаправляем на оплату...</p>
     <script>
         // Получаем идентификатор оплаты из URL
