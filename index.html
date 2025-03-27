@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1280, initial-scale=1.0"> <!-- Имитация десктопного размера -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PAY</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
@@ -14,27 +14,35 @@
     </style>
 </head>
 <body>
-    <script>
-    // Имитация десктопного размера окна
-    Object.defineProperty(window, 'innerWidth', { value: 1280, writable: false });
-    Object.defineProperty(window, 'innerHeight', { value: 720, writable: false });
-    </script>
     <p>Перенаправляем на оплату...</p>
+    <div id="log"></div>
     <script>
         // Получаем идентификатор оплаты из URL
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
+        const logDiv = document.getElementById('log');
 
         // Инициализируем Web App
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
 
-        // Редирект на Tinkoff
+        // Логируем процесс
+        function log(message) {
+            logDiv.innerHTML += `<p>${message}</p>`;
+        }
+
+        // Пробуем редирект
         if (paymentId) {
+            log(`Попытка открыть: ${tinkoffUrl}`);
             window.location.href = tinkoffUrl;
+
+            // Логируем, если редирект не сработал
+            setTimeout(() => {
+                log("Редирект не выполнен в течение 2 секунд. Telegram Web App, возможно, блокирует.");
+            }, 2000);
         } else {
-            document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
+            log("Ошибка: идентификатор оплаты не найден.");
         }
     </script>
 </body>
