@@ -12,54 +12,16 @@
             font-family: Arial, sans-serif;
             overflow: hidden;
         }
-        #tinkoffFrame {
+        iframe {
             width: 100%;
             height: 100vh;
             border: none;
-            display: block;
-        }
-        #resultPage {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background-color: #fff;
-            text-align: center;
-            padding-top: 20%;
-            font-size: 20px;
-        }
-        #resultPage.success {
-            background-color: #e6ffe6;
-            color: #008000;
-        }
-        #resultPage.error {
-            background-color: #ffe6e6;
-            color: #ff0000;
-        }
-        #closeButton {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #0088cc;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
         }
     </style>
 </head>
 <body>
     <iframe id="tinkoffFrame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
-    <div id="resultPage">
-        <p id="resultMessage"></p>
-        <button id="closeButton" onclick="Telegram.WebApp.close()">Вернуться в чат</button>
-    </div>
     <script>
-        console.log('Скрипт запущен, версия Telegram Web App:', Telegram.WebApp.version);
-        console.log('Платформа:', Telegram.WebApp.platform);
-
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
@@ -67,90 +29,49 @@
 
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
-        console.log('Web App инициализирован');
 
         const iframe = document.getElementById('tinkoffFrame');
-        const resultPage = document.getElementById('resultPage');
-        const resultMessage = document.getElementById('resultMessage');
-
-        const showResult = (message, isSuccess) => {
-            iframe.style.display = 'none';
-            resultPage.style.display = 'block';
-            resultPage.className = isSuccess ? 'success' : 'error';
-            resultMessage.textContent = message;
-            console.log('Показана страница результата:', message);
-        };
-
-        const checkStatus = async () => {
-            try {
-                console.log('Проверка статуса для paymentId:', paymentId);
-                const response = await fetch(statusUrl, {
-                    method: 'GET',
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    },
-                    credentials: 'omit'
-                });
-                const data = await response.json();
-                console.log('Статус от API:', data.Status);
-
-                if (data.Status === 'CONFIRMED') {
-                    console.log('Оплата успешна');
-                    clearInterval(statusInterval);
-                    iframe.style.display = 'none'; // Принудительно прячем iframe
-                    showResult('✅ Оплата успешно завершена!', true);
-                    Telegram.WebApp.sendData(JSON.stringify({ status: 'confirmed', paymentId: paymentId }));
-                    console.log('Отправлен сигнал confirmed');
-                } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
-                    console.log('Оплата отклонена или отменена');
-                    clearInterval(statusInterval);
-                    iframe.style.display = 'none'; // Принудительно прячем iframe
-                    showResult('❌ Оплата не прошла. Попробуйте снова.', false);
-                    Telegram.WebApp.sendData(JSON.stringify({ status: 'rejected', paymentId: paymentId }));
-                    console.log('Отправлен сигнал rejected');
-                } else {
-                    console.log('Текущий статус:', data.Status);
-                }
-            } catch (error) {
-                console.error('Ошибка при проверке статуса:', error);
-            }
-        };
-
         if (paymentId) {
             iframe.src = tinkoffUrl;
-            console.log('Iframe загружен с URL:', tinkoffUrl);
 
-            iframe.onload = () => {
+            // Проверяем статус каждую секунду
+            const checkStatus = async () => {
                 try {
-                    const iframeUrl = iframe.contentWindow.location.href;
-                    console.log('Iframe перезагружен, текущий URL:', iframeUrl);
-                    if (iframeUrl.includes('success') || iframeUrl.includes('fail')) {
-                        console.log('Обнаружен редирект Тинькофф');
-                        checkStatus();
+                    const response = await fetch(statusUrl, {
+                        method: 'GET',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                        }
+                    });
+                    const data = await response.json();
+                    console.log('Статус от API:', data.Status);
+
+                    if (data.Status === 'CONFIRMED') {
+                        console.log('Оплата успешна, закрываем Web App');
+                        clearInterval(statusInterval); // Останавливаем проверку
+                        Telegram.WebApp.close();
+                    } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
+                        console.log('Оплата отклонена или отменена, закрываем Web App');
+                        clearInterval(statusInterval);
+                        Telegram.WebApp.close();
                     }
-                } catch (e) {
-                    console.error('Ошибка доступа к URL iframe:', e);
-                    checkStatus(); // Проверяем статус в любом случае
+                } catch (error) {
+                    console.error('Ошибка при проверке статуса:', error);
                 }
             };
 
+            // Запускаем проверку каждую секунду
             const statusInterval = setInterval(checkStatus, 1000);
-            console.log('Запущен интервал проверки статуса');
 
+            // Запасной таймер на 15 минут
             setTimeout(() => {
-                console.log('Таймаут 15 минут');
+                console.log('Таймаут 15 минут, закрываем Web App');
                 clearInterval(statusInterval);
-                iframe.style.display = 'none';
-                showResult('⏰ Время оплаты истекло. Попробуйте снова.', false);
-                Telegram.WebApp.sendData(JSON.stringify({ status: 'timeout', paymentId: paymentId }));
+                Telegram.WebApp.close();
             }, 900000);
         } else {
-            console.log('Ошибка: paymentId не найден');
-            iframe.style.display = 'none';
-            resultPage.style.display = 'block';
-            resultMessage.textContent = 'Ошибка: идентификатор оплаты не найден.';
+            document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
+            setTimeout(() => Telegram.WebApp.close(), 2000);
         }
     </script>
 </body>
