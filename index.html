@@ -77,9 +77,6 @@
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
-            let errorCount = 0;
-            const maxErrors = 10;
-
             const checkStatus = async () => {
                 try {
                     console.log('Отправляем запрос на статус для paymentId:', paymentId);
@@ -88,9 +85,9 @@
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
                             'Accept': 'application/json',
-                            'Origin': window.location.origin // Добавляем Origin для CORS
+                            'Origin': window.location.origin
                         },
-                        credentials: 'omit' // Убираем куки, если они мешают
+                        credentials: 'omit'
                     });
                     console.log('Статус ответа:', response.status, response.statusText);
                     if (!response.ok) {
@@ -120,21 +117,12 @@
                     }
                 } catch (error) {
                     console.error('Ошибка при проверке статуса:', error.message);
-                    errorCount++;
-                    console.log('Количество ошибок:', errorCount);
-                    if (errorCount >= maxErrors) {
-                        console.log('Достигнуто максимальное количество ошибок, закрываем Web App');
-                        clearInterval(statusInterval);
-                        setTimeout(() => {
-                            console.log('Выполняем Telegram.WebApp.close() на платформе:', Telegram.WebApp.platform);
-                            Telegram.WebApp.close();
-                        }, 1000);
-                    }
                 }
             };
 
             const statusInterval = setInterval(checkStatus, 1000);
 
+            // Оставляем только базовый таймаут 15 минут
             setTimeout(() => {
                 console.log('Таймаут 15 минут, закрываем Web App');
                 clearInterval(statusInterval);
