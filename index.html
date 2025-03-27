@@ -78,7 +78,7 @@
             iframe.src = tinkoffUrl;
 
             let errorCount = 0;
-            const maxErrors = 10; // Закрываем после 10 ошибок
+            const maxErrors = 10;
 
             const checkStatus = async () => {
                 try {
@@ -86,12 +86,16 @@
                     const response = await fetch(statusUrl, {
                         method: 'GET',
                         headers: {
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                        }
+                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+                            'Accept': 'application/json',
+                            'Origin': window.location.origin // Добавляем Origin для CORS
+                        },
+                        credentials: 'omit' // Убираем куки, если они мешают
                     });
                     console.log('Статус ответа:', response.status, response.statusText);
                     if (!response.ok) {
-                        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+                        const text = await response.text();
+                        throw new Error(`HTTP error: ${response.status} ${response.statusText} - ${text}`);
                     }
                     const data = await response.json();
                     console.log('Полный ответ от API:', JSON.stringify(data));
