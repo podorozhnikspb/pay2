@@ -77,31 +77,46 @@
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
-            const checkStatus = async () => {
-                try {
+            const checkStatus = () => {
+                return new Promise((resolve, reject) => {
                     console.log('Отправляем запрос на статус для paymentId:', paymentId);
-                    const response = await fetch(statusUrl, {
-                        method: 'GET',
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-                            'Accept': 'application/json',
-                            'Origin': window.location.origin,
-                            'Referer': tinkoffUrl, // Добавляем Referer
-                            'Content-Type': 'application/json'
-                        },
-                        credentials: 'omit'
-                    });
-                    console.log('Статус ответа:', response.status, response.statusText);
-                    console.log('Заголовки ответа:', [...response.headers.entries()]);
-                    if (!response.ok) {
-                        const text = await response.text();
-                        console.log('Тело ответа при ошибке:', text.slice(0, 200)); // Ограничим до 200 символов
-                        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
-                    }
-                    const data = await response.json();
-                    console.log('Полный ответ от API:', JSON.stringify(data));
-                    console.log('Статус от API:', data.Status);
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('GET', statusUrl, true);
+                    xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1');
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.setRequestHeader('Origin', window.location.origin);
+                    xhr.setRequestHeader('Referer', tinkoffUrl);
 
+                    xhr.onload = () => {
+                        console.log('Статус ответа:', xhr.status, xhr.statusText);
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                console.log('Полный ответ от API:', JSON.stringify(data));
+                                console.log('Статус от API:', data.Status);
+                                resolve(data);
+                            } catch (e) {
+                                console.error('Ошибка парсинга JSON:', e.message);
+                                reject(e);
+                            }
+                        } else {
+                            console.log('Тело ответа при ошибке:', xhr.responseText.slice(0, 200));
+                            reject(new Error(`HTTP error: ${xhr.status} ${xhr.statusText}`));
+                        }
+                    };
+
+                    xhr.onerror = () => {
+                        console.error('Ошибка загрузки:', 'Network error');
+                        reject(new Error('Load failed'));
+                    };
+
+                    xhr.send();
+                });
+            };
+
+            const checkStatusInterval = async () => {
+                try {
+                    const data = await checkStatus();
                     if (data.Status === 'CONFIRMED') {
                         console.log('Оплата успешна, закрываем Web App');
                         clearInterval(statusInterval);
@@ -124,7 +139,7 @@
                 }
             };
 
-            const statusInterval = setInterval(checkStatus, 1000);
+            const statusInterval = setInterval(checkStatusInterval, 1000);
 
             setTimeout(() => {
                 console.log('Таймаут 15 минут, закрываем Web App');
