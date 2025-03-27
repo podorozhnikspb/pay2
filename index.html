@@ -85,14 +85,18 @@
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
                             'Accept': 'application/json',
-                            'Origin': window.location.origin
+                            'Origin': window.location.origin,
+                            'Referer': tinkoffUrl, // Добавляем Referer
+                            'Content-Type': 'application/json'
                         },
                         credentials: 'omit'
                     });
                     console.log('Статус ответа:', response.status, response.statusText);
+                    console.log('Заголовки ответа:', [...response.headers.entries()]);
                     if (!response.ok) {
                         const text = await response.text();
-                        throw new Error(`HTTP error: ${response.status} ${response.statusText} - ${text}`);
+                        console.log('Тело ответа при ошибке:', text.slice(0, 200)); // Ограничим до 200 символов
+                        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
                     }
                     const data = await response.json();
                     console.log('Полный ответ от API:', JSON.stringify(data));
@@ -122,7 +126,6 @@
 
             const statusInterval = setInterval(checkStatus, 1000);
 
-            // Оставляем только базовый таймаут 15 минут
             setTimeout(() => {
                 console.log('Таймаут 15 минут, закрываем Web App');
                 clearInterval(statusInterval);
