@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAY</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background-color: #ffffff; /* Светлый фон */
+            color: #000000; /* Чёрный текст */
+        }
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-button-color: #0088cc;
+            --tg-theme-button-text-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <p></p>
+    <script>
+        // Получаем идентификатор оплаты из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentId = urlParams.get('paymentId') || ''; // Уникальный ID от Tinkoff
+        const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
+
+        // Инициализируем Web App
+        Telegram.WebApp.expand();
+        Telegram.WebApp.ready();
+
+        // Принудительно задаём светлый фон и шапку
+        Telegram.WebApp.setBackgroundColor('#ffffff');
+        Telegram.WebApp.setHeaderColor('#ffffff');
+
+        // Редирект на Tinkoff
+        if (paymentId) {
+            window.location.href = tinkoffUrl;
+        } else {
+            document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
+        }
+    </script>
+</body>
+</html>
