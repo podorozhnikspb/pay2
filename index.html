@@ -8,41 +8,54 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        iframe {
+            width: 100%;
+            height: 100vh;
+            border: none;
         }
     </style>
 </head>
 <body>
-    <p>Перенаправляем на оплату...</p>
-    <div id="log"></div>
+    <iframe id="tinkoffFrame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
     <script>
         // Получаем идентификатор оплаты из URL
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
-        const logDiv = document.getElementById('log');
 
         // Инициализируем Web App
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
 
-        // Логируем процесс
-        function log(message) {
-            logDiv.innerHTML += `<p>${message}</p>`;
-        }
-
-        // Пробуем редирект
+        // Загружаем страницу Tinkoff в iframe
+        const iframe = document.getElementById('tinkoffFrame');
         if (paymentId) {
-            log(`Попытка открыть: ${tinkoffUrl}`);
-            window.location.href = tinkoffUrl;
+            iframe.src = tinkoffUrl;
 
-            // Логируем, если редирект не сработал
-            setTimeout(() => {
-                log("Редирект не выполнен в течение 2 секунд. Telegram Web App, возможно, блокирует.");
-            }, 2000);
+            // Перехватываем клики внутри iframe (если возможно)
+            iframe.onload = () => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const links = iframeDoc.getElementsByTagName('a');
+                    for (let link of links) {
+                        const href = link.href;
+                        if (href.match(/(sberbank|tinkoff|alfabank):\/\//i)) {
+                            link.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                Telegram.WebApp.openLink(href);
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error('Ошибка доступа к содержимому iframe:', e);
+                }
+            };
         } else {
-            log("Ошибка: идентификатор оплаты не найден.");
+            document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
         }
     </script>
 </body>
