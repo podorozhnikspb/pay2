@@ -25,6 +25,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
+        const statusUrl = `https://securepay.tinkoff.ru/transactions/GetPaymentStatus/${paymentId}`;
 
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
@@ -33,20 +34,39 @@
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
-            // Ловим сообщение от бота
-            Telegram.WebApp.onEvent('web_app_data', (event) => {
-                const data = event.data;
-                console.log('Получены данные от бота:', data);
-                // Проверяем, что это сообщение об успехе
-                if (data && data.includes('пополнена на')) {
-                    console.log('Оплата успешна, закрываем Web App');
-                    Telegram.WebApp.close();
-                }
-            });
+            // Проверяем статус каждую секунду
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(statusUrl, {
+                        method: 'GET',
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                        }
+                    });
+                    const data = await response.json();
+                    console.log('Статус от API:', data.Status);
 
-            // Запасной таймер на 15 минут (твой текущий)
+                    if (data.Status === 'CONFIRMED') {
+                        console.log('Оплата успешна, закрываем Web App');
+                        clearInterval(statusInterval); // Останавливаем проверку
+                        Telegram.WebApp.close();
+                    } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
+                        console.log('Оплата отклонена или отменена, закрываем Web App');
+                        clearInterval(statusInterval);
+                        Telegram.WebApp.close();
+                    }
+                } catch (error) {
+                    console.error('Ошибка при проверке статуса:', error);
+                }
+            };
+
+            // Запускаем проверку каждую секунду
+            const statusInterval = setInterval(checkStatus, 1000);
+
+            // Запасной таймер на 15 минут
             setTimeout(() => {
                 console.log('Таймаут 15 минут, закрываем Web App');
+                clearInterval(statusInterval);
                 Telegram.WebApp.close();
             }, 900000);
         } else {
