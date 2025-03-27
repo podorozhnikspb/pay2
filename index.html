@@ -10,39 +10,54 @@
             margin: 0;
             padding: 20px;
             font-family: Arial, sans-serif;
-            background-color: #ffffff; /* Светлый фон */
-            color: #000000; /* Чёрный текст */
-        }
-        :root {
-            --tg-theme-bg-color: #ffffff;
-            --tg-theme-text-color: #000000;
-            --tg-theme-button-color: #0088cc;
-            --tg-theme-button-text-color: #ffffff;
         }
     </style>
 </head>
 <body>
-    <p></p>
+    <p>Перенаправляем на оплату...</p>
     <script>
         // Получаем идентификатор оплаты из URL
         const urlParams = new URLSearchParams(window.location.search);
-        const paymentId = urlParams.get('paymentId') || ''; // Уникальный ID от Tinkoff
+        const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
 
         // Инициализируем Web App
         Telegram.WebApp.expand();
         Telegram.WebApp.ready();
 
-        // Принудительно задаём светлый фон и шапку
-        Telegram.WebApp.setBackgroundColor('#ffffff');
-        Telegram.WebApp.setHeaderColor('#ffffff');
+        // Функция для редиректа с подменой User-Agent
+        async function redirectToTinkoff() {
+            if (!paymentId) {
+                document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
+                return;
+            }
 
-        // Редирект на Tinkoff
-        if (paymentId) {
-            window.location.href = tinkoffUrl;
-        } else {
-            document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
+            // Подменяем User-Agent через fetch (имитация десктопного браузера)
+            const desktopUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+            try {
+                // Пробуем получить страницу с десктопным User-Agent
+                const response = await fetch(tinkoffUrl, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': desktopUserAgent
+                    }
+                });
+
+                if (response.ok) {
+                    // Если запрос успешен, делаем редирект
+                    window.location.href = tinkoffUrl;
+                } else {
+                    document.body.innerHTML = "<p>Ошибка при загрузке страницы оплаты.</p>";
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                // В случае ошибки просто делаем редирект (Tinkoff сам разберётся)
+                window.location.href = tinkoffUrl;
+            }
         }
+
+        // Запускаем редирект
+        redirectToTinkoff();
     </script>
 </body>
 </html>
