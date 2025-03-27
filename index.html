@@ -73,64 +73,65 @@
         const resultPage = document.getElementById('resultPage');
         const resultMessage = document.getElementById('resultMessage');
 
+        const showResult = (message, isSuccess) => {
+            iframe.style.display = 'none';
+            resultPage.style.display = 'block';
+            resultPage.className = isSuccess ? 'success' : 'error';
+            resultMessage.textContent = message;
+            console.log('Показана страница результата:', message);
+        };
+
+        const checkStatus = async () => {
+            try {
+                console.log('Проверка статуса для paymentId:', paymentId);
+                const response = await fetch(statusUrl, {
+                    method: 'GET',
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    },
+                    credentials: 'omit'
+                });
+                const data = await response.json();
+                console.log('Статус от API:', data.Status);
+
+                if (data.Status === 'CONFIRMED') {
+                    console.log('Оплата успешна');
+                    showResult('✅ Оплата успешно завершена!', true);
+                    Telegram.WebApp.sendData(JSON.stringify({ status: 'confirmed', paymentId: paymentId }));
+                    console.log('Отправлен сигнал confirmed');
+                } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
+                    console.log('Оплата отклонена или отменена');
+                    showResult('❌ Оплата не прошла. Попробуйте снова.', false);
+                    Telegram.WebApp.sendData(JSON.stringify({ status: 'rejected', paymentId: paymentId }));
+                    console.log('Отправлен сигнал rejected');
+                } else {
+                    console.log('Текущий статус:', data.Status);
+                    // Продолжаем проверку после небольшой задержки
+                    setTimeout(checkStatus, 1000);
+                }
+            } catch (error) {
+                console.error('Ошибка при проверке статуса:', error);
+                setTimeout(checkStatus, 1000); // Повторяем при ошибке
+            }
+        };
+
         if (paymentId) {
             iframe.src = tinkoffUrl;
             console.log('Iframe загружен с URL:', tinkoffUrl);
 
             iframe.onload = () => {
                 console.log('Iframe перезагружен, возможно редирект');
-                checkStatus();
+                checkStatus(); // Проверяем статус сразу после редиректа
             };
 
-            const showResult = (message, isSuccess) => {
-                iframe.style.display = 'none';
-                resultPage.style.display = 'block';
-                resultPage.className = isSuccess ? 'success' : 'error';
-                resultMessage.textContent = message;
-                console.log('Показана страница результата:', message);
-            };
+            // Начинаем проверку сразу
+            checkStatus();
 
-            const checkStatus = async () => {
-                try {
-                    console.log('Проверка статуса для paymentId:', paymentId);
-                    const response = await fetch(statusUrl, {
-                        method: 'GET',
-                        headers: {
-                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-                            'Accept': 'application/json',
-                            'Cache-Control': 'no-cache'
-                        },
-                        credentials: 'omit'
-                    });
-                    const data = await response.json();
-                    console.log('Статус от API:', data.Status);
-
-                    if (data.Status === 'CONFIRMED') {
-                        console.log('Оплата успешна');
-                        clearInterval(statusInterval);
-                        showResult('✅ Оплата успешно завершена!', true);
-                        Telegram.WebApp.sendData(JSON.stringify({ status: 'confirmed', paymentId: paymentId }));
-                        console.log('Отправлен сигнал confirmed');
-                    } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
-                        console.log('Оплата отклонена или отменена');
-                        clearInterval(statusInterval);
-                        showResult('❌ Оплата не прошла. Попробуйте снова.', false);
-                        Telegram.WebApp.sendData(JSON.stringify({ status: 'rejected', paymentId: paymentId }));
-                        console.log('Отправлен сигнал rejected');
-                    } else {
-                        console.log('Текущий статус:', data.Status);
-                    }
-                } catch (error) {
-                    console.error('Ошибка при проверке статуса:', error);
-                }
-            };
-
-            const statusInterval = setInterval(checkStatus, 1000);
-            console.log('Запущен интервал проверки статуса');
-
+            // Таймаут 15 минут
             setTimeout(() => {
                 console.log('Таймаут 15 минут');
-                clearInterval(statusInterval);
                 showResult('⏰ Время оплаты истекло. Попробуйте снова.', false);
                 Telegram.WebApp.sendData(JSON.stringify({ status: 'timeout', paymentId: paymentId }));
             }, 900000);
