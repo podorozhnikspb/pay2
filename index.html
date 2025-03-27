@@ -30,7 +30,7 @@
             font-size: 12px;
             overflow-y: auto;
             z-index: 1000;
-            display: none; /* Показываем только если есть логи */
+            display: none;
         }
     </style>
 </head>
@@ -38,7 +38,6 @@
     <iframe id="tinkoffFrame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
     <div id="logContainer"></div>
     <script>
-        // Простая утилита для логов
         const logContainer = document.getElementById('logContainer');
         const originalConsoleLog = console.log;
         const originalConsoleError = console.error;
@@ -49,7 +48,7 @@
             logEntry.textContent = `[${timestamp}] ${message}`;
             logContainer.appendChild(logEntry);
             logContainer.style.display = 'block';
-            logContainer.scrollTop = logContainer.scrollHeight; // Прокрутка вниз
+            logContainer.scrollTop = logContainer.scrollHeight;
         }
 
         console.log = function (...args) {
@@ -73,9 +72,13 @@
         const iframe = document.getElementById('tinkoffFrame');
 
         console.log('Платформа:', Telegram.WebApp.platform);
+        console.log('paymentId:', paymentId);
 
         if (paymentId) {
             iframe.src = tinkoffUrl;
+
+            let errorCount = 0;
+            const maxErrors = 10; // Закрываем после 10 ошибок
 
             const checkStatus = async () => {
                 try {
@@ -86,6 +89,10 @@
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
                         }
                     });
+                    console.log('Статус ответа:', response.status, response.statusText);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+                    }
                     const data = await response.json();
                     console.log('Полный ответ от API:', JSON.stringify(data));
                     console.log('Статус от API:', data.Status);
@@ -108,7 +115,17 @@
                         console.log('Статус не требует закрытия:', data.Status);
                     }
                 } catch (error) {
-                    console.error('Ошибка при проверке статуса:', error);
+                    console.error('Ошибка при проверке статуса:', error.message);
+                    errorCount++;
+                    console.log('Количество ошибок:', errorCount);
+                    if (errorCount >= maxErrors) {
+                        console.log('Достигнуто максимальное количество ошибок, закрываем Web App');
+                        clearInterval(statusInterval);
+                        setTimeout(() => {
+                            console.log('Выполняем Telegram.WebApp.close() на платформе:', Telegram.WebApp.platform);
+                            Telegram.WebApp.close();
+                        }, 1000);
+                    }
                 }
             };
 
