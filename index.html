@@ -39,9 +39,24 @@
             iframe.src = tinkoffUrl;
             console.log('Iframe загружен с URL:', tinkoffUrl);
 
+            // Обработка редиректа
             iframe.onload = () => {
                 console.log('Iframe перезагружен, возможно редирект');
-                checkStatus(); // Проверяем сразу после редиректа
+                checkStatus(); // Проверяем сразу
+            };
+
+            const closeWebApp = () => {
+                console.log('Пытаемся закрыть Web App всеми способами');
+                Telegram.WebApp.close();
+                console.log('Вызван Telegram.WebApp.close()');
+                setTimeout(() => {
+                    console.log('Костыль 1: window.close()');
+                    window.close();
+                }, 500);
+                setTimeout(() => {
+                    console.log('Костыль 2: редирект на tg://resolve');
+                    window.location.href = 'tg://resolve';
+                }, 1000);
             };
 
             const checkStatus = async () => {
@@ -51,38 +66,26 @@
                         method: 'GET',
                         headers: {
                             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-                            'Accept': 'application/json'
-                        }
+                            'Accept': 'application/json',
+                            'Cache-Control': 'no-cache' // Избегаем кэширования
+                        },
+                        credentials: 'omit' // Убираем куки, если мешают
                     });
                     const data = await response.json();
                     console.log('Статус от API:', data.Status);
 
                     if (data.Status === 'CONFIRMED') {
-                        console.log('Оплата успешна, пытаемся закрыть Web App');
+                        console.log('Оплата успешна');
                         clearInterval(statusInterval);
                         Telegram.WebApp.sendData('payment_confirmed');
                         console.log('Отправлен сигнал payment_confirmed');
-                        Telegram.WebApp.close();
-                        console.log('Вызван Telegram.WebApp.close()');
-                        setTimeout(() => {
-                            console.log('Костыль: пробуем window.close()');
-                            window.close();
-                            console.log('Костыль: редирект на tg://resolve');
-                            window.location.href = 'tg://resolve';
-                        }, 1000);
+                        closeWebApp();
                     } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
-                        console.log('Оплата отклонена или отменена, пытаемся закрыть Web App');
+                        console.log('Оплата отклонена или отменена');
                         clearInterval(statusInterval);
                         Telegram.WebApp.sendData('payment_rejected');
                         console.log('Отправлен сигнал payment_rejected');
-                        Telegram.WebApp.close();
-                        console.log('Вызван Telegram.WebApp.close()');
-                        setTimeout(() => {
-                            console.log('Костыль: пробуем window.close()');
-                            window.close();
-                            console.log('Костыль: редирект на tg://resolve');
-                            window.location.href = 'tg://resolve';
-                        }, 1000);
+                        closeWebApp();
                     } else {
                         console.log('Текущий статус:', data.Status);
                     }
@@ -97,7 +100,7 @@
             setTimeout(() => {
                 console.log('Таймаут 15 минут, закрываем Web App');
                 clearInterval(statusInterval);
-                Telegram.WebApp.close();
+                closeWebApp();
             }, 900000);
         } else {
             console.log('Ошибка: paymentId не найден');
