@@ -38,6 +38,13 @@
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
+            // Отслеживаем загрузку iframe (редирект от Тинькофф)
+            iframe.onload = () => {
+                console.log('Iframe загружен или перенаправлен');
+                // Проверяем статус после редиректа
+                checkStatus();
+            };
+
             const checkStatus = async () => {
                 try {
                     const response = await fetch(statusUrl, {
@@ -52,11 +59,13 @@
                     if (data.Status === 'CONFIRMED') {
                         console.log('Оплата успешна');
                         clearInterval(statusInterval);
-                        Telegram.WebApp.close();
+                        iframe.src = ''; // Очищаем iframe, чтобы остановить редирект
+                        setTimeout(() => Telegram.WebApp.close(), 500); // Задержка для iOS
                     } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
                         console.log('Оплата отклонена или отменена');
                         clearInterval(statusInterval);
-                        Telegram.WebApp.close();
+                        iframe.src = ''; // Очищаем iframe
+                        setTimeout(() => Telegram.WebApp.close(), 500); // Задержка для iOS
                     }
                 } catch (error) {
                     console.error('Ошибка при проверке статуса:', error);
@@ -68,7 +77,8 @@
             setTimeout(() => {
                 console.log('Таймаут 15 минут');
                 clearInterval(statusInterval);
-                Telegram.WebApp.close();
+                iframe.src = ''; // Очищаем iframe
+                setTimeout(() => Telegram.WebApp.close(), 500); // Задержка для iOS
             }, 900000);
         } else {
             document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
