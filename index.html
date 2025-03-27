@@ -18,44 +18,10 @@
             border: none;
             display: block;
         }
-        #resultPage {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            background-color: #fff;
-            text-align: center;
-            padding-top: 20%;
-            font-size: 20px;
-        }
-        #resultPage.success {
-            background-color: #e6ffe6;
-            color: #008000;
-        }
-        #resultPage.error {
-            background-color: #ffe6e6;
-            color: #ff0000;
-        }
-        #closeButton {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #0088cc;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
     <iframe id="tinkoffFrame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
-    <div id="resultPage">
-        <p id="resultMessage"></p>
-        <button id="closeButton" onclick="Telegram.WebApp.close()">Вернуться в чат</button>
-    </div>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
@@ -66,19 +32,8 @@
         Telegram.WebApp.ready();
 
         const iframe = document.getElementById('tinkoffFrame');
-        const resultPage = document.getElementById('resultPage');
-        const resultMessage = document.getElementById('resultMessage');
-        const isIOS = Telegram.WebApp.platform === 'ios';
 
         console.log('Платформа:', Telegram.WebApp.platform);
-
-        const showResult = (message, isSuccess) => {
-            iframe.style.display = 'none';
-            resultPage.style.display = 'block';
-            resultPage.className = isSuccess ? 'success' : 'error';
-            resultMessage.textContent = message;
-            console.log('Показана страница результата:', message);
-        };
 
         if (paymentId) {
             iframe.src = tinkoffUrl;
@@ -97,21 +52,11 @@
                     if (data.Status === 'CONFIRMED') {
                         console.log('Оплата успешна');
                         clearInterval(statusInterval);
-                        if (isIOS) {
-                            showResult('✅ Оплата успешно завершена!', true);
-                        } else {
-                            console.log('Закрываем Web App');
-                            Telegram.WebApp.close();
-                        }
+                        Telegram.WebApp.close();
                     } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
                         console.log('Оплата отклонена или отменена');
                         clearInterval(statusInterval);
-                        if (isIOS) {
-                            showResult('❌ Оплата не прошла. Попробуйте снова.', false);
-                        } else {
-                            console.log('Закрываем Web App');
-                            Telegram.WebApp.close();
-                        }
+                        Telegram.WebApp.close();
                     }
                 } catch (error) {
                     console.error('Ошибка при проверке статуса:', error);
@@ -123,11 +68,7 @@
             setTimeout(() => {
                 console.log('Таймаут 15 минут');
                 clearInterval(statusInterval);
-                if (isIOS) {
-                    showResult('⏰ Время оплаты истекло. Попробуйте снова.', false);
-                } else {
-                    Telegram.WebApp.close();
-                }
+                Telegram.WebApp.close();
             }, 900000);
         } else {
             document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
