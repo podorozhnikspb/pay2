@@ -34,19 +34,30 @@
         if (paymentId) {
             iframe.src = tinkoffUrl;
 
-            iframe.onload = () => {
+            // Проверяем URL каждые 500 мс
+            const checkUrlInterval = setInterval(() => {
                 try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const currentUrl = iframeDoc.location.href;
+                    const currentUrl = iframe.contentWindow.location.href;
+                    console.log('Текущий URL в iframe:', currentUrl);
 
+                    // Если URL начинается с successUrlPrefix, закрываем Web App
                     if (currentUrl.startsWith(successUrlPrefix)) {
                         console.log('Оплата успешно завершена, закрываем Web App');
+                        clearInterval(checkUrlInterval); // Останавливаем проверку
                         Telegram.WebApp.close();
                     }
                 } catch (e) {
+                    // Ошибка доступа из-за CORS — игнорируем и продолжаем проверку
                     console.error('Ошибка доступа к содержимому iframe:', e);
                 }
-            };
+            }, 500); // Проверяем каждые 0.5 секунды
+
+            // Останавливаем проверку через 15 минут (900000 мс), если что-то пошло не так
+            setTimeout(() => {
+                clearInterval(checkUrlInterval);
+                console.log('Таймаут проверки URL, закрываем Web App');
+                Telegram.WebApp.close();
+            }, 900000);
         } else {
             document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
             setTimeout(() => Telegram.WebApp.close(), 2000);
