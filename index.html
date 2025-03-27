@@ -18,11 +18,50 @@
             border: none;
             display: block;
         }
+        #logContainer {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            width: 80%;
+            max-height: 200px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            font-size: 12px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none; /* Показываем только если есть логи */
+        }
     </style>
 </head>
 <body>
     <iframe id="tinkoffFrame" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
+    <div id="logContainer"></div>
     <script>
+        // Простая утилита для логов
+        const logContainer = document.getElementById('logContainer');
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+
+        function appendLog(message) {
+            const timestamp = new Date().toISOString();
+            const logEntry = document.createElement('p');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logContainer.appendChild(logEntry);
+            logContainer.style.display = 'block';
+            logContainer.scrollTop = logContainer.scrollHeight; // Прокрутка вниз
+        }
+
+        console.log = function (...args) {
+            originalConsoleLog.apply(console, args);
+            appendLog(args.join(' '));
+        };
+
+        console.error = function (...args) {
+            originalConsoleError.apply(console, args);
+            appendLog('ERROR: ' + args.join(' '));
+        };
+
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId') || '';
         const tinkoffUrl = `https://securepayments.tinkoff.ru/${paymentId}`;
@@ -40,6 +79,7 @@
 
             const checkStatus = async () => {
                 try {
+                    console.log('Отправляем запрос на статус для paymentId:', paymentId);
                     const response = await fetch(statusUrl, {
                         method: 'GET',
                         headers: {
@@ -47,6 +87,7 @@
                         }
                     });
                     const data = await response.json();
+                    console.log('Полный ответ от API:', JSON.stringify(data));
                     console.log('Статус от API:', data.Status);
 
                     if (data.Status === 'CONFIRMED') {
@@ -55,14 +96,16 @@
                         setTimeout(() => {
                             console.log('Выполняем Telegram.WebApp.close() на платформе:', Telegram.WebApp.platform);
                             Telegram.WebApp.close();
-                        }, 1000); // Увеличили задержку
+                        }, 1000);
                     } else if (data.Status === 'REJECTED' || data.Status === 'CANCELED') {
                         console.log('Оплата отклонена или отменена, закрываем Web App');
                         clearInterval(statusInterval);
                         setTimeout(() => {
                             console.log('Выполняем Telegram.WebApp.close() на платформе:', Telegram.WebApp.platform);
                             Telegram.WebApp.close();
-                        }, 1000); // Увеличили задержку
+                        }, 1000);
+                    } else {
+                        console.log('Статус не требует закрытия:', data.Status);
                     }
                 } catch (error) {
                     console.error('Ошибка при проверке статуса:', error);
@@ -77,7 +120,7 @@
                 setTimeout(() => {
                     console.log('Выполняем Telegram.WebApp.close() на платформе:', Telegram.WebApp.platform);
                     Telegram.WebApp.close();
-                }, 1000); // Увеличили задержку
+                }, 1000);
             }, 900000);
         } else {
             document.body.innerHTML = "<p>Ошибка: идентификатор оплаты не найден.</p>";
